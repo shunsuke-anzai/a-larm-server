@@ -1,1 +1,4 @@
 node_modules/
+*.wav
+*.txt
+temp_query.json
