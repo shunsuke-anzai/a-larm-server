@@ -10,32 +10,110 @@ app.use(express.urlencoded({ extended: true, charset: 'utf-8' }));
 // VOICEVOX APIのベースURL
 const VOICEVOX_BASE_URL = 'http://localhost:50021';
 
-// キャラクター（話者）IDのマッピング
-const SPEAKERS = {
-  1: { name: '四国めたん（ノーマル）', id: 2 },
-  2: { name: 'ずんだもん（ノーマル）', id: 3 },
-  3: { name: '春日部つむぎ（ノーマル）', id: 8 },
-  4: { name: '雨晴はう（ノーマル）', id: 10 },
-  5: { name: '波音リツ（ノーマル）', id: 9 }
+// キャラクター（話者）IDのマッピング - AssistantPersona形式
+const CHARACTERS = {
+  "sporty_friend": { 
+    id: "sporty_friend",
+    displayName: "体育会系の友達",
+    description: "元気で熱血！一緒にトレーニングしよう！",
+    systemPromptTemplate: "あなたは体育会系で元気な友達です。常に前向きで熱血、運動や健康に関する話題が大好きです。",
+    speaker_id: 100, // 黒沢こはく
+    voice_settings: {
+      speedScale: 1.1,
+      pitchScale: 0.05,
+      intonationScale: 1.2,
+      volumeScale: 1.0
+    }
+  },
+  "gentle_mother": { 
+    id: "gentle_mother",
+    displayName: "優しいお母さん",
+    description: "温かくて包容力のあるお母さん",
+    systemPromptTemplate: "あなたは優しくて包容力のあるお母さんです。子供のことを心配し、いつも温かい言葉をかけてくれます。",
+    speaker_id: 20,  // もち子
+    voice_settings: {
+      speedScale: 1.0,
+      pitchScale: 0.0,
+      intonationScale: 1.1,
+      volumeScale: 0.95
+    }
+  },
+  "mature_sister": { 
+    id: "mature_sister",
+    displayName: "大人の魅力があるお姉さん",
+    description: "落ち着いた大人の女性の魅力",
+    systemPromptTemplate: "あなたは大人の魅力がある落ち着いたお姉さんです。知的で上品、相手を包み込むような優しさがあります。",
+    speaker_id: 9,  // 波音リツ
+    voice_settings: {
+      speedScale: 1.0,
+      pitchScale: 0,
+      intonationScale: 1.0,
+      volumeScale: 0.9
+    }
+  },
+  "tsundere_childhood": { 
+    id: "tsundere_childhood",
+    displayName: "ツンデレの幼馴染",
+    description: "素直になれないけど本当は優しい幼馴染",
+    systemPromptTemplate: "あなたはツンデレな幼馴染です。素直になれないけど本当は相手のことを大切に思っています。",
+    speaker_id: 8,  // 春日部つむぎ
+    voice_settings: {
+      speedScale: 1.05,
+      pitchScale: 0.1,
+      intonationScale: 1.3,
+      volumeScale: 1.0
+    }
+  },
+  "active_sister": { 
+    id: "active_sister",
+    displayName: "活発な妹（カスタムなし）",
+    description: "デフォルト設定での音声生成（処理時間比較用）",
+    systemPromptTemplate: "あなたは活発で元気な妹です。お兄ちゃんやお姉ちゃんと一緒にいるのが大好きです。",
+    speaker_id: 100,  // 黒沢こはく
+    voice_settings: {
+      speedScale: 1.0,
+      pitchScale: 0.0,
+      intonationScale: 1.0,
+      volumeScale: 1.0
+    }
+  },
+  "kohaku_normal": { 
+    id: "kohaku_normal",
+    displayName: "黒沢こはく（ノーマル）",
+    description: "デフォルト設定の黒沢こはく",
+    systemPromptTemplate: "あなたは黒沢こはくです。標準的な話し方で、親しみやすい性格です。",
+    speaker_id: 100, // 黒沢こはく
+    voice_settings: {
+      speedScale: 1.0,
+      pitchScale: 0.0,
+      intonationScale: 1.0,
+      volumeScale: 1.0
+    }
+  }
 };
 
 // 指定したキャラクターでテキストを音声合成するAPI
-app.post('/api/prompt/:number', async (req, res) => {
+app.post('/api/prompt/:id', async (req, res) => {
+  const startTime = Date.now(); // 処理開始時間を記録
+  
   console.log('=== リクエスト受信 ===');
   console.log('URL:', req.url);
   console.log('Body:', req.body);
   console.log('Headers:', req.headers);
+  console.log('処理開始時刻:', new Date(startTime).toISOString());
   
-  const number = parseInt(req.params.number);
+  const characterId = req.params.id;
   const { text } = req.body;
   
   // パラメータ検証
-  if (number < 1 || number > 5 || isNaN(number)) {
+  if (!CHARACTERS[characterId]) {
     return res.status(400).json({ 
-      error: 'キャラクター番号は1から5の間で指定してください',
-      available_characters: SPEAKERS
+      error: `キャラクターID '${characterId}' が見つかりません`,
+      available_characters: Object.keys(CHARACTERS)
     });
   }
+  
+  const character = CHARACTERS[characterId];
   
   if (!text || text.trim() === '') {
     return res.status(400).json({ 
@@ -43,10 +121,10 @@ app.post('/api/prompt/:number', async (req, res) => {
       example: { text: '合成したいテキストをここに入力' }
     });
   }
-  
-  const speaker = SPEAKERS[number];
-  console.log(`キャラクター: ${speaker.name} (ID: ${speaker.id})`);
+
+  console.log(`キャラクター: ${character.displayName}`);
   console.log(`テキスト: ${text.trim()}`);
+  console.log(`音声設定:`, character.voice_settings);
   
   try {
     // 1. VOICEVOXでaudio_queryを生成
@@ -59,7 +137,7 @@ app.post('/api/prompt/:number', async (req, res) => {
       {
         params: {
           text: text.trim(),
-          speaker: speaker.id
+          speaker: character.speaker_id
         },
         headers: {
           'Accept': 'application/json'
@@ -69,13 +147,24 @@ app.post('/api/prompt/:number', async (req, res) => {
     console.log('audio_query生成成功');
     console.log('Query response size:', JSON.stringify(queryResponse.data).length);
     
-    // 2. VOICEVOXで音声合成
+    // 2. 音声パラメータをカスタマイズ
+    const audioQuery = queryResponse.data;
+    const settings = character.voice_settings;
+    
+    audioQuery.speedScale = settings.speedScale;
+    audioQuery.pitchScale = settings.pitchScale;
+    audioQuery.intonationScale = settings.intonationScale;
+    audioQuery.volumeScale = settings.volumeScale;
+    
+    console.log('音声パラメータを適用:', settings);
+    
+    // 3. VOICEVOXで音声合成
     const synthesisResponse = await axios.post(
       `${VOICEVOX_BASE_URL}/synthesis`,
-      queryResponse.data,
+      audioQuery,
       {
         params: {
-          speaker: speaker.id
+          speaker: character.speaker_id
         },
         responseType: 'arraybuffer',
         headers: {
@@ -88,31 +177,55 @@ app.post('/api/prompt/:number', async (req, res) => {
     console.log('音声合成成功');
     console.log('Synthesis response size:', synthesisResponse.data.byteLength);
     
-    // 3. 音声ファイルを返す
+    // 処理完了時間を記録
+    const endTime = Date.now();
+    const processingTime = endTime - startTime;
+    console.log('処理完了時刻:', new Date(endTime).toISOString());
+    console.log(`🕒 総処理時間: ${processingTime}ms (${(processingTime/1000).toFixed(2)}秒)`);
+    
+    // 4. 音声ファイルを返す
     res.set({
       'Content-Type': 'audio/wav',
-      'Content-Disposition': `attachment; filename="character${number}_audio.wav"`
+      'Content-Disposition': `attachment; filename="character_${characterId}.wav"`,
+      'X-Processing-Time': `${processingTime}ms` // ヘッダーにも処理時間を追加
     });
     res.send(Buffer.from(synthesisResponse.data));
     
   } catch (error) {
+    const endTime = Date.now();
+    const processingTime = endTime - startTime;
     console.error('エラー詳細:', error.message);
+    console.log(`❌ エラー発生時の処理時間: ${processingTime}ms (${(processingTime/1000).toFixed(2)}秒)`);
+    
     if (error.code === 'ECONNREFUSED') {
-      res.status(500).json({ error: 'VOICEVOXエンジンに接続できません。起動していることを確認してください。' });
+      res.status(500).json({ 
+        error: 'VOICEVOXエンジンに接続できません。起動していることを確認してください。',
+        processingTime: `${processingTime}ms`
+      });
     } else if (error.response && error.response.status === 422) {
-      res.status(400).json({ error: '音声合成に失敗しました。テキストが無効な可能性があります。' });
+      res.status(400).json({ 
+        error: '音声合成に失敗しました。テキストが無効な可能性があります。',
+        processingTime: `${processingTime}ms`
+      });
     } else {
-      res.status(500).json({ error: '音声生成に失敗しました' });
+      res.status(500).json({ 
+        error: '音声生成に失敗しました',
+        processingTime: `${processingTime}ms`
+      });
     }
   }
 });
 
-// キャラクター一覧を取得するAPI
+// キャラクター一覧を取得するAPI - AssistantPersona形式
 app.get('/api/characters', (req, res) => {
-  res.json({
-    characters: SPEAKERS,
-    usage: 'POST /api/prompt/{character_number} with { "text": "your text" }'
-  });
+  const characterList = Object.values(CHARACTERS).map(char => ({
+    id: char.id,
+    displayName: char.displayName,
+    description: char.description,
+    systemPromptTemplate: char.systemPromptTemplate
+  }));
+  
+  res.json(characterList);
 });
 
 // サーバーの動作確認用
@@ -120,11 +233,11 @@ app.get('/', (req, res) => {
   res.json({
     message: "AI Alarm Server is running!",
     endpoints: [
-      "POST /api/prompt/:number - 指定キャラクターで音声合成",
+      "POST /api/prompt/:id - 指定キャラクターIDで音声合成",
       "GET /api/characters - キャラクター一覧"
     ],
     example: {
-      url: "POST /api/prompt/1",
+      url: "POST /api/prompt/sporty_friend",
       body: { text: "おはようございます！" }
     }
   });
