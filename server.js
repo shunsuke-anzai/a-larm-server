@@ -1,5 +1,7 @@
 const express = require('express');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -7,8 +9,31 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ charset: 'utf-8' }));
 app.use(express.urlencoded({ extended: true, charset: 'utf-8' }));
 
+// 静的ファイル（画像）を提供
+app.use('/prompts', express.static(path.join(__dirname, 'prompts')));
+
 // VOICEVOX APIのベースURL
 const VOICEVOX_BASE_URL = 'http://localhost:50021';
+
+// プロンプトファイルを読み込む関数
+function loadSystemPrompt(folderName) {
+  try {
+    const filePath = path.join(__dirname, 'prompts', folderName, `${folderName}_model.txt`);
+    return fs.readFileSync(filePath, 'utf-8');
+  } catch (error) {
+    console.warn(`プロンプトファイルの読み込みに失敗: ${folderName}`, error.message);
+    return `あなたは${folderName}キャラクターです。`;
+  }
+}
+
+// 画像URLを生成する関数
+function getImageUrl(folderName) {
+  const imagePath = path.join(__dirname, 'prompts', folderName, `${folderName}.jpg`);
+  if (fs.existsSync(imagePath)) {
+    return `/prompts/${folderName}/${folderName}.jpg`;
+  }
+  return null;
+}
 
 // キャラクター（話者）IDのマッピング - AssistantPersona形式
 const CHARACTERS = {
@@ -16,7 +41,8 @@ const CHARACTERS = {
     id: "sporty_friend",
     displayName: "体育会系の友達",
     description: "元気で熱血！一緒にトレーニングしよう！",
-    systemPromptTemplate: "あなたは体育会系で元気な友達です。常に前向きで熱血、運動や健康に関する話題が大好きです。",
+    systemPromptTemplate: loadSystemPrompt('Athletic'),
+    imageUrl: getImageUrl('Athletic'),
     speaker_id: 100, // 黒沢こはく
     voice_settings: {
       speedScale: 1.1,
@@ -29,7 +55,8 @@ const CHARACTERS = {
     id: "gentle_mother",
     displayName: "優しいお母さん",
     description: "温かくて包容力のあるお母さん",
-    systemPromptTemplate: "あなたは優しくて包容力のあるお母さんです。子供のことを心配し、いつも温かい言葉をかけてくれます。",
+    systemPromptTemplate: loadSystemPrompt('Mother'),
+    imageUrl: getImageUrl('Mother'),
     speaker_id: 20,  // もち子
     voice_settings: {
       speedScale: 1.0,
@@ -42,7 +69,8 @@ const CHARACTERS = {
     id: "mature_sister",
     displayName: "大人の魅力があるお姉さん",
     description: "落ち着いた大人の女性の魅力",
-    systemPromptTemplate: "あなたは大人の魅力がある落ち着いたお姉さんです。知的で上品、相手を包み込むような優しさがあります。",
+    systemPromptTemplate: loadSystemPrompt('Older'),
+    imageUrl: getImageUrl('Older'),
     speaker_id: 9,  // 波音リツ
     voice_settings: {
       speedScale: 1.0,
@@ -55,12 +83,13 @@ const CHARACTERS = {
     id: "tsundere_childhood",
     displayName: "ツンデレの幼馴染",
     description: "素直になれないけど本当は優しい幼馴染",
-    systemPromptTemplate: "あなたはツンデレな幼馴染です。素直になれないけど本当は相手のことを大切に思っています。",
-    speaker_id: 8,  // 春日部つむぎ
+    systemPromptTemplate: loadSystemPrompt('Tsundere'),
+    imageUrl: getImageUrl('Tsundere'),
+    speaker_id: 47,  // 冥鳴ひまり
     voice_settings: {
       speedScale: 1.05,
-      pitchScale: 0.1,
-      intonationScale: 1.3,
+      pitchScale: 0.0,
+      intonationScale: 1.0,
       volumeScale: 1.0
     }
   },
@@ -68,21 +97,9 @@ const CHARACTERS = {
     id: "active_sister",
     displayName: "活発な妹（カスタムなし）",
     description: "デフォルト設定での音声生成（処理時間比較用）",
-    systemPromptTemplate: "あなたは活発で元気な妹です。お兄ちゃんやお姉ちゃんと一緒にいるのが大好きです。",
-    speaker_id: 100,  // 黒沢こはく
-    voice_settings: {
-      speedScale: 1.0,
-      pitchScale: 0.0,
-      intonationScale: 1.0,
-      volumeScale: 1.0
-    }
-  },
-  "kohaku_normal": { 
-    id: "kohaku_normal",
-    displayName: "黒沢こはく（ノーマル）",
-    description: "デフォルト設定の黒沢こはく",
-    systemPromptTemplate: "あなたは黒沢こはくです。標準的な話し方で、親しみやすい性格です。",
-    speaker_id: 100, // 黒沢こはく
+    systemPromptTemplate: loadSystemPrompt('Younger'),
+    imageUrl: getImageUrl('Younger'),
+    speaker_id: 3,  // ずんだもん
     voice_settings: {
       speedScale: 1.0,
       pitchScale: 0.0,
@@ -222,7 +239,8 @@ app.get('/api/characters', (req, res) => {
     id: char.id,
     displayName: char.displayName,
     description: char.description,
-    systemPromptTemplate: char.systemPromptTemplate
+    systemPromptTemplate: char.systemPromptTemplate,
+    imageUrl: char.imageUrl
   }));
   
   res.json(characterList);
