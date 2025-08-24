@@ -107,6 +107,20 @@ const CHARACTERS = {
       intonationScale: 1.0,
       volumeScale: 1.0
     }
+  },
+  "cool_man": { 
+    id: "cool_man",
+    displayName: "クールな男性",
+    description: "落ち着いた大人の男性の魅力",
+    systemPromptTemplate: loadSystemPrompt('Cool'),
+    imageUrl: getImageUrl('Cool'),
+    speaker_id: 99,  // 離途
+    voice_settings: {
+      speedScale: 1.0,
+      pitchScale: 0.0,
+      intonationScale: 1.0,
+      volumeScale: 1.0
+    }
   }
 };
 
