@@ -26,11 +26,12 @@ function loadSystemPrompt(folderName) {
   }
 }
 
-// 画像URLを生成する関数
+// 画像URLを生成する関数（GitHub公開リポジトリ用）
 function getImageUrl(folderName) {
+  const baseUrl = 'https://github.com/shunsuke-anzai/a-larm-server/blob/main/prompts';
   const imagePath = path.join(__dirname, 'prompts', folderName, `${folderName}.jpg`);
   if (fs.existsSync(imagePath)) {
-    return `/prompts/${folderName}/${folderName}.jpg`;
+    return `${baseUrl}/${folderName}/${folderName}.jpg?raw=true`;
   }
   return null;
 }
